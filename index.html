@@ -101,36 +101,41 @@
   <body>
     <div id="root"></div>
 
-    <!-- Crawlable content for SEO / AEO / GEO. Visible to users and to search/AI crawlers
-         even before the JavaScript app renders. -->
+    <!-- Crawlable content for SEO / AEO / GEO, kept compact in a footer with collapsible FAQ
+         so it stays out of the way while remaining readable by search/AI crawlers. -->
     <footer class="page-info" id="about">
-      <h2>SVG to Icon Font Generator</h2>
-      <p>
-        This free online tool converts your <strong>SVG icons into a web icon font</strong> —
-        <strong>TTF, WOFF and WOFF2</strong> — together with a CSS file and an HTML demo
-        cheatsheet. It is a browser-based alternative to tools like IcoMoon: everything runs
-        locally in your browser, so your icons are never uploaded anywhere.
-      </p>
+      <div class="page-info-inner">
+        <p class="page-info-lead">
+          <strong>SVG to Icon Font Generator</strong> — a free, browser-based tool that converts
+          your SVG icons into a web icon font (<strong>TTF, WOFF, WOFF2</strong>) with CSS and a
+          demo page. Everything runs locally in your browser; nothing is uploaded. A privacy-friendly
+          alternative to IcoMoon. You can also import an existing icon font to update it, and
+          auto-center, trim and pad icons.
+        </p>
 
-      <h3>What you can do</h3>
-      <ul>
-        <li>Drag and drop SVGs and download a complete icon font (TTF + WOFF + WOFF2 + CSS).</li>
-        <li>Import an existing icon font (TTF/OTF/WOFF/WOFF2) and update it while keeping its codepoints.</li>
-        <li>Automatically center, trim and pad icons so off-center artwork sits correctly.</li>
-        <li>Work offline and privately — no sign-up, no server, no file uploads.</li>
-      </ul>
-
-      <h3>Frequently asked questions</h3>
-      <h4>Is it free?</h4>
-      <p>Yes, it is completely free and runs entirely in your browser.</p>
-      <h4>Are my files uploaded to a server?</h4>
-      <p>No. All processing happens locally in your browser, so your files never leave your computer.</p>
-      <h4>What formats does it generate?</h4>
-      <p>TrueType (TTF), WOFF and WOFF2, plus a CSS file and an HTML demo page.</p>
-      <h4>Can I import and update an existing icon font?</h4>
-      <p>Yes — import a TTF, OTF, WOFF or WOFF2 file; its glyphs load as editable icons and keep their original codepoints.</p>
-      <h4>Can I fix an off-center icon?</h4>
-      <p>Yes — enable “Center &amp; trim” to recenter each icon by its real artwork, and use the padding slider.</p>
+        <div class="faq">
+          <details>
+            <summary>Is it free?</summary>
+            <p>Yes, it is completely free and runs entirely in your browser.</p>
+          </details>
+          <details>
+            <summary>Are my files uploaded to a server?</summary>
+            <p>No. All processing happens locally in your browser, so your files never leave your computer.</p>
+          </details>
+          <details>
+            <summary>What formats does it generate?</summary>
+            <p>TrueType (TTF), WOFF and WOFF2, plus a CSS file and an HTML demo page.</p>
+          </details>
+          <details>
+            <summary>Can I import and update an existing icon font?</summary>
+            <p>Yes — import a TTF, OTF, WOFF or WOFF2 file; its glyphs load as editable icons and keep their original codepoints.</p>
+          </details>
+          <details>
+            <summary>Can I fix an off-center icon?</summary>
+            <p>Yes — enable “Center &amp; trim” to recenter each icon by its real artwork, and use the padding slider.</p>
+          </details>
+        </div>
+      </div>
     </footer>
 
     <script type="module" src="/src/main.jsx"></script>
