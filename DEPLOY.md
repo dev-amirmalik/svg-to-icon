@@ -47,6 +47,41 @@ To speed up indexing:
 
 Indexing usually takes a few days to a couple of weeks.
 
+## 3b. Bing — important for AI assistants
+
+ChatGPT (browse), Microsoft Copilot, and DuckDuckGo rely on **Bing's** index, so submitting to
+Bing materially helps AI discoverability.
+
+1. Go to **Bing Webmaster Tools** (https://www.bing.com/webmasters).
+2. Add your site — you can **import directly from Google Search Console** in one click, or verify
+   with a meta tag like the Google one.
+3. Submit `sitemap.xml`.
+### IndexNow (near-instant indexing) — already wired up
+
+- A verification key file is included at `public/1cf5f8f5f28064eaad12769770b520b6.txt`
+  (served at `https://your-site/1cf5f8f5f28064eaad12769770b520b6.txt` after deploy).
+- After each deploy, notify the engines:
+
+  ```bash
+  npm run notify:indexnow -- https://your-app.vercel.app
+  ```
+
+  A `200`/`202` response means it was accepted. (If you want your own key, generate a new
+  hex string, rename the file in `public/` to `<key>.txt`, and update `KEY` in
+  `scripts/indexnow.mjs`.)
+
+### Search engine verification
+
+`index.html` has placeholder meta tags:
+
+```html
+<meta name="google-site-verification" content="REPLACE_WITH_GOOGLE_CODE" />
+<meta name="msvalidate.01" content="REPLACE_WITH_BING_CODE" />
+```
+
+Paste the code each console gives you (Google Search Console / Bing Webmaster Tools), then
+redeploy. Or skip the Bing tag and just **import from Google** inside Bing Webmaster Tools.
+
 ## 4. AEO — Answer Engine Optimization (featured snippets, voice)
 
 Built in: `FAQPage` and `HowTo` structured data plus a visible FAQ with clear question
