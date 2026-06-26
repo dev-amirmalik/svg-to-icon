@@ -1,0 +1,31 @@
+# SVG to Icon Font Generator
+
+> A free, browser-based tool that converts SVG icons into a web icon font (TTF, WOFF, WOFF2)
+> with a CSS file and an HTML demo cheatsheet. All processing happens locally in the browser —
+> no files are uploaded to any server. It is a privacy-friendly alternative to IcoMoon.
+
+## What it does
+- Converts one or many SVG icons into a downloadable icon font: TTF, WOFF and WOFF2.
+- Generates a CSS file (@font-face plus .icon-* classes) and a demo.html cheatsheet.
+- Imports an existing icon font (TTF/OTF/WOFF/WOFF2) so you can update it while keeping the
+  original Unicode codepoints, so existing CSS keeps working.
+- Centers, trims and pads icons automatically to fix off-center or corner artwork.
+- Auto-saves your work in the browser (localStorage) so a reload does not lose icons.
+
+## Key facts
+- Price: free.
+- Privacy: runs entirely client-side; files never leave the user's device; works offline.
+- Output formats: TTF, WOFF, WOFF2, CSS, HTML demo.
+- No account or sign-up required.
+
+## How to use
+1. Drag and drop SVG files (or click to browse), or import an existing font.
+2. Rename icons, set the font name and CSS class prefix, and adjust centering/padding.
+3. Click "Generate font".
+4. Download the files individually or as a single .zip and add the CSS + fonts to your project.
+
+## Common questions
+- Is it free? Yes.
+- Are files uploaded? No, everything is processed in the browser.
+- Can I update an old icon font? Yes, import it and its codepoints are preserved.
+- What formats? TTF, WOFF, WOFF2, plus CSS and a demo page.
