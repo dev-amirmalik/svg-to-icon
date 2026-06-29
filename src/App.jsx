@@ -9,7 +9,7 @@ import {
   clearState,
   serializeIcons,
 } from "./lib/storage.js";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 
 const START_CODEPOINT = 0xe900; // private-use area, IcoMoon convention
 
