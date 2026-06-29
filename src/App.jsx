@@ -3,7 +3,13 @@ import svgpath from "svgpath";
 import { svgToGlyphPath, centerGlyphPath } from "./lib/svgToGlyph.js";
 import { buildFont, compressWoff2, packageZip } from "./lib/buildFont.js";
 import { importFontFile } from "./lib/importFont.js";
-import { loadState, saveState, clearState, serializeIcons } from "./lib/storage.js";
+import {
+  loadState,
+  saveState,
+  clearState,
+  serializeIcons,
+} from "./lib/storage.js";
+import { Analytics } from "@vercel/analytics/next";
 
 const START_CODEPOINT = 0xe900; // private-use area, IcoMoon convention
 
@@ -20,7 +26,10 @@ function sanitizeName(filename) {
 
 // Lowest free codepoint above everything already used (and above the PUA start).
 function nextFreeCode(list) {
-  const max = list.reduce((m, i) => Math.max(m, i.unicode || 0), START_CODEPOINT - 1);
+  const max = list.reduce(
+    (m, i) => Math.max(m, i.unicode || 0),
+    START_CODEPOINT - 1,
+  );
   return max + 1;
 }
 
@@ -42,7 +51,9 @@ function deriveGlyph(icon, em, fit = false, padding = 0.08) {
   else if (icon.glyphPath) {
     const s = em / (icon.srcEm || em);
     const d =
-      s === 1 ? icon.glyphPath : svgpath(icon.glyphPath).scale(s).round(2).toString();
+      s === 1
+        ? icon.glyphPath
+        : svgpath(icon.glyphPath).scale(s).round(2).toString();
     base = { d, advanceWidth: Math.round((icon.rawAdvance || em) * s) };
   } else {
     base = { d: icon.d || "", advanceWidth: icon.advanceWidth || em };
@@ -92,10 +103,14 @@ export default function App() {
   const [icons, setIcons] = useState(() =>
     PERSISTED?.icons?.length
       ? hydrateIcons(PERSISTED.icons, initialEm, initialFit, initialPadding)
-      : []
+      : [],
   );
-  const [fontName, setFontName] = useState(PERSISTED?.settings?.fontName || "myicon");
-  const [classPrefix, setClassPrefix] = useState(PERSISTED?.settings?.classPrefix || "icon-");
+  const [fontName, setFontName] = useState(
+    PERSISTED?.settings?.fontName || "myicon",
+  );
+  const [classPrefix, setClassPrefix] = useState(
+    PERSISTED?.settings?.classPrefix || "icon-",
+  );
   const [unitsPerEm, setUnitsPerEm] = useState(initialEm);
   const [fit, setFit] = useState(initialFit);
   const [padding, setPadding] = useState(initialPadding);
@@ -110,7 +125,9 @@ export default function App() {
   const addFiles = useCallback(
     async (fileList) => {
       setError("");
-      const files = Array.from(fileList).filter((f) => /\.svg$/i.test(f.name) || f.type === "image/svg+xml");
+      const files = Array.from(fileList).filter(
+        (f) => /\.svg$/i.test(f.name) || f.type === "image/svg+xml",
+      );
       if (!files.length) {
         setError("No SVG files found. Please drop .svg files.");
         return;
@@ -119,11 +136,24 @@ export default function App() {
       for (const file of files) {
         try {
           const text = await file.text();
-          const item = { id: nextId++, name: sanitizeName(file.name), svg: text };
-          const { d, advanceWidth } = deriveGlyph(item, unitsPerEm, fit, padding);
+          const item = {
+            id: nextId++,
+            name: sanitizeName(file.name),
+            svg: text,
+          };
+          const { d, advanceWidth } = deriveGlyph(
+            item,
+            unitsPerEm,
+            fit,
+            padding,
+          );
           parsed.push({ ...item, d, advanceWidth, empty: !d });
         } catch (e) {
-          parsed.push({ id: nextId++, name: sanitizeName(file.name), error: e.message });
+          parsed.push({
+            id: nextId++,
+            name: sanitizeName(file.name),
+            error: e.message,
+          });
         }
       }
       setResult(null);
@@ -132,13 +162,18 @@ export default function App() {
         let code = nextFreeCode(prev);
         const added = parsed
           .filter((p) => !p.error)
-          .map((p) => ({ ...p, name: uniqueName(p.name, taken), unicode: code++ }));
+          .map((p) => ({
+            ...p,
+            name: uniqueName(p.name, taken),
+            unicode: code++,
+          }));
         return [...prev, ...added];
       });
       const failed = parsed.filter((p) => p.error);
-      if (failed.length) setError(`${failed.length} file(s) could not be parsed.`);
+      if (failed.length)
+        setError(`${failed.length} file(s) could not be parsed.`);
     },
-    [unitsPerEm, fit, padding]
+    [unitsPerEm, fit, padding],
   );
 
   const importFont = useCallback(
@@ -153,7 +188,12 @@ export default function App() {
           const usedCodes = new Set(prev.map((i) => i.unicode));
           let fallback = nextFreeCode(prev);
           const added = glyphs.map((g) => {
-            const { d, advanceWidth } = deriveGlyph(g, unitsPerEm, fit, padding);
+            const { d, advanceWidth } = deriveGlyph(
+              g,
+              unitsPerEm,
+              fit,
+              padding,
+            );
             // Preserve the original codepoint; if it collides, assign a free one.
             let unicode = g.unicode;
             if (usedCodes.has(unicode)) {
@@ -180,24 +220,29 @@ export default function App() {
         setError(e.message || "Could not import this font.");
       }
     },
-    [unitsPerEm, fit, padding]
+    [unitsPerEm, fit, padding],
   );
 
   // Route dropped/selected files: SVGs become icons, font files get imported.
   const routeFiles = useCallback(
     (fileList) => {
       const files = Array.from(fileList);
-      const svgs = files.filter((f) => /\.svg$/i.test(f.name) || f.type === "image/svg+xml");
+      const svgs = files.filter(
+        (f) => /\.svg$/i.test(f.name) || f.type === "image/svg+xml",
+      );
       const fonts = files.filter(
-        (f) => /\.(ttf|otf|woff2?|eot)$/i.test(f.name) || /^font\//.test(f.type)
+        (f) =>
+          /\.(ttf|otf|woff2?|eot)$/i.test(f.name) || /^font\//.test(f.type),
       );
       if (svgs.length) addFiles(svgs);
       fonts.forEach((f) => importFont(f));
       if (!svgs.length && !fonts.length) {
-        setError("Drop SVG icons or a font file (.ttf / .otf / .woff / .woff2).");
+        setError(
+          "Drop SVG icons or a font file (.ttf / .otf / .woff / .woff2).",
+        );
       }
     },
-    [addFiles, importFont]
+    [addFiles, importFont],
   );
 
   const onDrop = useCallback(
@@ -206,7 +251,7 @@ export default function App() {
       setDragging(false);
       routeFiles(e.dataTransfer.files);
     },
-    [routeFiles]
+    [routeFiles],
   );
 
   const removeIcon = (id) =>
@@ -232,7 +277,7 @@ export default function App() {
         } catch {
           return ic;
         }
-      })
+      }),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unitsPerEm, fit, padding]);
@@ -246,7 +291,7 @@ export default function App() {
     });
     if (!ok && icons.length) {
       setError(
-        "Heads up: couldn't auto-save — the icon set may be too large for this browser's storage."
+        "Heads up: couldn't auto-save — the icon set may be too large for this browser's storage.",
       );
     }
   }, [icons, fontName, classPrefix, unitsPerEm, fit, padding]);
@@ -262,7 +307,7 @@ export default function App() {
       setError(
         `Duplicate icon name${dups.length > 1 ? "s" : ""}: ${dups.join(", ")}. Rename the highlighted icon${
           dups.length > 1 ? "s" : ""
-        }.`
+        }.`,
       );
       return;
     }
@@ -283,7 +328,7 @@ export default function App() {
       (async () => {
         try {
           const previewUrl = URL.createObjectURL(
-            new Blob([res.woff || res.ttf], { type: "font/woff" })
+            new Blob([res.woff || res.ttf], { type: "font/woff" }),
           );
           const face = new FontFace(family, `url(${previewUrl})`);
           await face.load();
@@ -312,7 +357,10 @@ export default function App() {
     downloadBlob(blob, `${fontName}.zip`, "application/zip");
   };
 
-  const validCount = useMemo(() => icons.filter((i) => !i.empty).length, [icons]);
+  const validCount = useMemo(
+    () => icons.filter((i) => !i.empty).length,
+    [icons],
+  );
 
   // Names used by more than one icon (live duplicate detection while editing).
   const dupNames = useMemo(() => {
@@ -323,12 +371,16 @@ export default function App() {
 
   return (
     <div className="app">
+      <Analytics />
       <header className="topbar">
         <div className="brand">
           <span className="logo">✦</span>
           <div>
             <h1>SVG → Icon Font</h1>
-            <p>Turn SVG icons into a web font — TTF, WOFF, WOFF2, CSS &amp; demo. Runs entirely in your browser.</p>
+            <p>
+              Turn SVG icons into a web font — TTF, WOFF, WOFF2, CSS &amp; demo.
+              Runs entirely in your browser.
+            </p>
           </div>
         </div>
       </header>
@@ -356,7 +408,9 @@ export default function App() {
             <div className="dz-inner">
               <div className="dz-icon">⬆</div>
               <strong>Drop SVG files here</strong>
-              <span>or click to browse — you can also drop a font file to import</span>
+              <span>
+                or click to browse — you can also drop a font file to import
+              </span>
             </div>
           </div>
 
@@ -383,12 +437,15 @@ export default function App() {
                 e.target.value = "";
               }}
             />
-            <button className="ghost wide" onClick={() => fontInput.current?.click()}>
+            <button
+              className="ghost wide"
+              onClick={() => fontInput.current?.click()}
+            >
               ⤓ Import existing font (.ttf / .otf / .woff / .woff2)
             </button>
             <span className="import-hint">
-              Click, or drop a font file here — loads an old icon font so you can add or edit
-              icons, keeping its codepoints.
+              Click, or drop a font file here — loads an old icon font so you
+              can add or edit icons, keeping its codepoints.
             </span>
           </div>
 
@@ -398,8 +455,13 @@ export default function App() {
             <div className="toolbar">
               <span>
                 {icons.length} icon{icons.length !== 1 ? "s" : ""}
-                {validCount !== icons.length ? ` (${icons.length - validCount} empty)` : ""}
-                <span className="saved-hint" title="Saved in this browser — survives reloads">
+                {validCount !== icons.length
+                  ? ` (${icons.length - validCount} empty)`
+                  : ""}
+                <span
+                  className="saved-hint"
+                  title="Saved in this browser — survives reloads"
+                >
                   · auto-saved
                 </span>
               </span>
@@ -417,12 +479,19 @@ export default function App() {
                 }`}
                 key={ic.id}
               >
-                <button className="tile-remove" title="Remove" onClick={() => removeIcon(ic.id)}>
+                <button
+                  className="tile-remove"
+                  title="Remove"
+                  onClick={() => removeIcon(ic.id)}
+                >
                   ×
                 </button>
                 <div className="tile-preview">
                   {ic.d ? (
-                    <svg viewBox={`0 0 ${unitsPerEm} ${unitsPerEm}`} aria-label={ic.name}>
+                    <svg
+                      viewBox={`0 0 ${unitsPerEm} ${unitsPerEm}`}
+                      aria-label={ic.name}
+                    >
                       <g transform={`translate(0 ${unitsPerEm}) scale(1 -1)`}>
                         <path d={ic.d} fill="currentColor" />
                       </g>
@@ -435,8 +504,14 @@ export default function App() {
                   className="tile-name"
                   value={ic.name}
                   spellCheck={false}
-                  title={dupNames.has(ic.name) ? "Duplicate name — must be unique" : ic.name}
-                  onChange={(e) => renameIcon(ic.id, sanitizeName(e.target.value))}
+                  title={
+                    dupNames.has(ic.name)
+                      ? "Duplicate name — must be unique"
+                      : ic.name
+                  }
+                  onChange={(e) =>
+                    renameIcon(ic.id, sanitizeName(e.target.value))
+                  }
                 />
                 {dupNames.has(ic.name) ? (
                   <span className="tile-dup-label">duplicate</span>
@@ -452,15 +527,24 @@ export default function App() {
           <h2>Font settings</h2>
           <label>
             Font name
-            <input value={fontName} onChange={(e) => setFontName(e.target.value.trim() || "myicon")} />
+            <input
+              value={fontName}
+              onChange={(e) => setFontName(e.target.value.trim() || "myicon")}
+            />
           </label>
           <label>
             CSS class prefix
-            <input value={classPrefix} onChange={(e) => setClassPrefix(e.target.value)} />
+            <input
+              value={classPrefix}
+              onChange={(e) => setClassPrefix(e.target.value)}
+            />
           </label>
           <label>
             Units per em
-            <select value={unitsPerEm} onChange={(e) => setUnitsPerEm(Number(e.target.value))}>
+            <select
+              value={unitsPerEm}
+              onChange={(e) => setUnitsPerEm(Number(e.target.value))}
+            >
               <option value={1000}>1000</option>
               <option value={1024}>1024</option>
               <option value={2048}>2048</option>
@@ -468,10 +552,15 @@ export default function App() {
           </label>
 
           <label className="check">
-            <input type="checkbox" checked={fit} onChange={(e) => setFit(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={fit}
+              onChange={(e) => setFit(e.target.checked)}
+            />
             Center &amp; trim icons
             <span className="check-hint">
-              Centers each icon by its actual artwork (fixes off-center / corner icons).
+              Centers each icon by its actual artwork (fixes off-center / corner
+              icons).
             </span>
           </label>
 
@@ -491,37 +580,62 @@ export default function App() {
           <button
             className="primary"
             disabled={busy || !icons.length || dupNames.size > 0}
-            title={dupNames.size > 0 ? "Resolve duplicate icon names first" : ""}
+            title={
+              dupNames.size > 0 ? "Resolve duplicate icon names first" : ""
+            }
             onClick={generate}
           >
-            {busy ? "Generating…" : dupNames.size > 0 ? "Fix duplicate names" : "Generate font"}
+            {busy
+              ? "Generating…"
+              : dupNames.size > 0
+                ? "Fix duplicate names"
+                : "Generate font"}
           </button>
 
           {result && (
             <div className="downloads">
               <h3>Download</h3>
-              <button className="dl" onClick={() => downloadBlob(result.ttf, `${fontName}.ttf`, "font/ttf")}>
+              <button
+                className="dl"
+                onClick={() =>
+                  downloadBlob(result.ttf, `${fontName}.ttf`, "font/ttf")
+                }
+              >
                 {fontName}.ttf
               </button>
               <button
                 className="dl"
                 disabled={!result.woff}
-                onClick={() => downloadBlob(result.woff, `${fontName}.woff`, "font/woff")}
+                onClick={() =>
+                  downloadBlob(result.woff, `${fontName}.woff`, "font/woff")
+                }
               >
                 {fontName}.woff
               </button>
               <button
                 className="dl"
                 disabled={!result.woff2}
-                onClick={() => downloadBlob(result.woff2, `${fontName}.woff2`, "font/woff2")}
+                onClick={() =>
+                  downloadBlob(result.woff2, `${fontName}.woff2`, "font/woff2")
+                }
                 title={result.woff2 ? "" : "WOFF2 unavailable in this browser"}
               >
                 {fontName}.woff2{!result.woff2 ? " (n/a)" : ""}
               </button>
-              <button className="dl" onClick={() => downloadBlob(result.css, "style.css", "text/css")}>
+              <button
+                className="dl"
+                onClick={() =>
+                  downloadBlob(result.css, "style.css", "text/css")
+                }
+              >
                 style.css
               </button>
-              <button className="dl" onClick={() => downloadBlob(result.demo, "demo.html", "text/html")}>
+              <button
+                className="dl"
+                onClick={() =>
+                  downloadBlob(result.demo, "demo.html", "text/html")
+                }
+              >
                 demo.html
               </button>
               <button className="primary block" onClick={downloadZip}>
@@ -535,7 +649,11 @@ export default function App() {
               <h3>Font preview</h3>
               <div className="fp-grid">
                 {icons.map((ic) => (
-                  <div className="fp-cell" key={ic.id} title={`${classPrefix}${ic.name}`}>
+                  <div
+                    className="fp-cell"
+                    key={ic.id}
+                    title={`${classPrefix}${ic.name}`}
+                  >
                     <span style={{ fontFamily: result.previewFamily }}>
                       {String.fromCodePoint(ic.unicode)}
                     </span>
