@@ -537,8 +537,12 @@ export default function App() {
                       : ic.name
                   }
                   onChange={(e) =>
-                    renameIcon(ic.id, sanitizeName(e.target.value))
+                    renameIcon(
+                      ic.id,
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+                    )
                   }
+                  onBlur={(e) => renameIcon(ic.id, sanitizeName(e.target.value))}
                 />
                 {dupNames.has(ic.name) ? (
                   <span className="tile-dup-label">duplicate</span>
