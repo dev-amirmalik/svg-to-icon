@@ -10,6 +10,199 @@ function num(el, attr, fallback = 0) {
   return Number.isFinite(v) ? v : fallback;
 }
 
+// ---- Stroke outlining ---------------------------------------------------
+// Many icon SVGs draw with `stroke` and no `fill` (e.g. line icons). A glyph
+// only renders filled area, so a bare centerline collapses to nothing and the
+// icon looks "broken / lines missing". We convert such strokes into filled
+// outlines here. The outline is built from overlapping contours (a quad per
+// segment + a disc at each vertex) all wound the same way; the non-zero fill
+// rule then unions them, which is exactly how TrueType glyphs are filled.
+
+function parseStyleAttr(el) {
+  const out = {};
+  const s = el.getAttribute && el.getAttribute("style");
+  if (!s) return out;
+  for (const decl of s.split(";")) {
+    const idx = decl.indexOf(":");
+    if (idx === -1) continue;
+    out[decl.slice(0, idx).trim()] = decl.slice(idx + 1).trim();
+  }
+  return out;
+}
+
+// Resolve the paint/stroke properties for an element, letting inline `style`
+// win over presentation attributes, layered over inherited values.
+function resolveStyle(el, inherited) {
+  const style = parseStyleAttr(el);
+  const own = (prop, attr) => {
+    if (style[prop] != null && style[prop] !== "") return style[prop];
+    const a = el.getAttribute && el.getAttribute(attr);
+    return a != null && a !== "" ? a : undefined;
+  };
+  const merged = { ...inherited };
+  const map = [
+    ["fill", "fill"],
+    ["stroke", "stroke"],
+    ["strokeWidth", "stroke-width", "stroke-width"],
+    ["linecap", "stroke-linecap"],
+    ["linejoin", "stroke-linejoin"],
+  ];
+  for (const [key, prop, attr] of map) {
+    const v = own(prop, attr || prop);
+    if (v !== undefined) merged[key] = v;
+  }
+  return merged;
+}
+
+const isNone = (v) => v == null || v === "none" || v === "transparent";
+
+function sampleCubic(p0, p1, p2, p3, n = 24) {
+  const pts = [];
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    const u = 1 - t;
+    pts.push({
+      x:
+        u * u * u * p0.x +
+        3 * u * u * t * p1.x +
+        3 * u * t * t * p2.x +
+        t * t * t * p3.x,
+      y:
+        u * u * u * p0.y +
+        3 * u * u * t * p1.y +
+        3 * u * t * t * p2.y +
+        t * t * t * p3.y,
+    });
+  }
+  return pts;
+}
+
+function sampleQuad(p0, p1, p2, n = 20) {
+  const pts = [];
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    const u = 1 - t;
+    pts.push({
+      x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+      y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+    });
+  }
+  return pts;
+}
+
+// Flatten a path "d" into subpaths of points: [{ pts: [{x,y}...], closed }].
+function flattenPath(d) {
+  const subs = [];
+  let cur = null;
+  const push = (x, y) => {
+    if (!cur) return;
+    const last = cur.pts[cur.pts.length - 1];
+    if (last && Math.abs(last.x - x) < 1e-6 && Math.abs(last.y - y) < 1e-6)
+      return;
+    cur.pts.push({ x, y });
+  };
+  svgpath(d)
+    .abs()
+    .unarc()
+    .unshort()
+    .iterate((seg, _i, x, y) => {
+      const c = seg[0];
+      if (c === "M") {
+        cur = { pts: [{ x: seg[1], y: seg[2] }], closed: false };
+        subs.push(cur);
+      } else if (c === "L") {
+        push(seg[1], seg[2]);
+      } else if (c === "H") {
+        push(seg[1], y);
+      } else if (c === "V") {
+        push(x, seg[1]);
+      } else if (c === "C") {
+        for (const p of sampleCubic(
+          { x, y },
+          { x: seg[1], y: seg[2] },
+          { x: seg[3], y: seg[4] },
+          { x: seg[5], y: seg[6] },
+        ))
+          push(p.x, p.y);
+      } else if (c === "Q") {
+        for (const p of sampleQuad(
+          { x, y },
+          { x: seg[1], y: seg[2] },
+          { x: seg[3], y: seg[4] },
+        ))
+          push(p.x, p.y);
+      } else if (c === "Z" || c === "z") {
+        if (cur) cur.closed = true;
+      }
+    });
+  return subs.filter((s) => s.pts.length > 0);
+}
+
+function signedArea(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const q = pts[(i + 1) % pts.length];
+    a += p.x * q.y - q.x * p.y;
+  }
+  return a / 2;
+}
+
+// Force a consistent winding so overlapping contours union under non-zero fill.
+function normalize(pts) {
+  return signedArea(pts) < 0 ? pts.slice().reverse() : pts;
+}
+
+function disc(c, r, n = 16) {
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    pts.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r });
+  }
+  return pts;
+}
+
+function segQuad(a, b, r) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-6) return null;
+  const nx = (-dy / len) * r;
+  const ny = (dx / len) * r;
+  return [
+    { x: a.x + nx, y: a.y + ny },
+    { x: b.x + nx, y: b.y + ny },
+    { x: b.x - nx, y: b.y - ny },
+    { x: a.x - nx, y: a.y - ny },
+  ];
+}
+
+function contourToD(pts) {
+  const f = (v) => Math.round(v * 1000) / 1000;
+  let d = `M${f(pts[0].x)} ${f(pts[0].y)}`;
+  for (let i = 1; i < pts.length; i++) d += `L${f(pts[i].x)} ${f(pts[i].y)}`;
+  return d + "Z";
+}
+
+// Convert a stroked path "d" into a filled outline "d" (round caps/joins).
+function outlineStroke(d, width) {
+  const r = width / 2;
+  if (!(r > 0)) return "";
+  const contours = [];
+  for (const sub of flattenPath(d)) {
+    const seq = sub.closed ? [...sub.pts, sub.pts[0]] : sub.pts;
+    for (let i = 0; i + 1 < seq.length; i++) {
+      const q = segQuad(seq[i], seq[i + 1], r);
+      if (q) contours.push(q);
+    }
+    for (const v of sub.pts) contours.push(disc(v, r)); // round joins + caps
+  }
+  return contours
+    .map(normalize)
+    .map(contourToD)
+    .join(" ");
+}
+
 // Turn a primitive shape element into an SVG path "d" string.
 function shapeToD(el) {
   const tag = el.tagName.toLowerCase();
@@ -74,14 +267,17 @@ function shapeToD(el) {
 }
 
 // Recursively collect path "d" strings with parent transforms applied.
-function collectPaths(node, parentTransform, out) {
+// `inherited` carries fill/stroke styling down the tree so stroke-only icons
+// get their strokes outlined into fillable area.
+function collectPaths(node, parentTransform, inherited, out) {
   for (const child of Array.from(node.children || [])) {
     const tag = child.tagName.toLowerCase();
     if (tag === "defs" || tag === "clippath" || tag === "mask" || tag === "symbol") continue;
     const ownTransform = child.getAttribute("transform") || "";
     const transform = [parentTransform, ownTransform].filter(Boolean).join(" ");
+    const style = resolveStyle(child, inherited);
     if (tag === "g" || tag === "svg") {
-      collectPaths(child, transform, out);
+      collectPaths(child, transform, style, out);
       continue;
     }
     if (SHAPE_TAGS.includes(tag)) {
@@ -89,12 +285,36 @@ function collectPaths(node, parentTransform, out) {
       if (!d) continue;
       const display = child.getAttribute("display");
       if (display === "none") continue;
-      let p = svgpath(d);
-      if (transform) p = p.transform(transform);
-      out.push(p.toString());
+
+      // A shape can contribute a fill, a stroke outline, or both.
+      const pieces = [];
+      if (!isNone(style.fill)) pieces.push(d);
+      const sw = parseFloat(style.strokeWidth);
+      if (!isNone(style.stroke) && Number.isFinite(sw) && sw > 0) {
+        const outlined = outlineStroke(d, sw);
+        if (outlined) pieces.push(outlined);
+      }
+      // Fallback: element with neither fill nor stroke resolved — treat as
+      // filled so we never silently drop artwork.
+      if (!pieces.length) pieces.push(d);
+
+      for (const piece of pieces) {
+        let p = svgpath(piece);
+        if (transform) p = p.transform(transform);
+        out.push(p.toString());
+      }
     }
   }
 }
+
+// SVG defaults: fill is black, stroke is none.
+const ROOT_STYLE = {
+  fill: "black",
+  stroke: "none",
+  strokeWidth: "1",
+  linecap: "butt",
+  linejoin: "miter",
+};
 
 function parseViewBox(svg) {
   const vb = svg.getAttribute("viewBox");
@@ -125,7 +345,10 @@ export function svgToGlyphPath(svgText, unitsPerEm = 1000) {
 
   const vb = parseViewBox(svg);
   const paths = [];
-  collectPaths(svg, "", paths);
+  // Seed inheritance with the root <svg>'s own fill/stroke (icons often set
+  // fill="none" there) so children inherit it correctly.
+  const rootStyle = resolveStyle(svg, ROOT_STYLE);
+  collectPaths(svg, "", rootStyle, paths);
   const combined = paths.join(" ");
   if (!combined.trim()) {
     // Empty / unsupported icon: return an empty glyph so the build still works.

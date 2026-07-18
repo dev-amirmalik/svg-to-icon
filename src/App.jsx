@@ -119,8 +119,22 @@ export default function App() {
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [importDragging, setImportDragging] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "light";
+    return localStorage.getItem("theme") || "light";
+  });
   const fileInput = useRef(null);
   const fontInput = useRef(null);
+
+  // Apply the theme to <html> and remember the choice across reloads.
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      localStorage.setItem("theme", theme);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [theme]);
 
   const addFiles = useCallback(
     async (fileList) => {
@@ -298,6 +312,10 @@ export default function App() {
 
   const generate = async () => {
     setError("");
+    if (!fontName.trim()) {
+      setError("Font name is required.");
+      return;
+    }
     if (!icons.length) {
       setError("Add some SVG icons first.");
       return;
@@ -383,6 +401,15 @@ export default function App() {
             </p>
           </div>
         </div>
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+          aria-label="Toggle color theme"
+        >
+          <span className="tt-icon">{theme === "dark" ? "☀" : "☾"}</span>
+          {theme === "dark" ? "Light" : "Dark"}
+        </button>
       </header>
 
       <main className="layout">
@@ -529,8 +556,12 @@ export default function App() {
             Font name
             <input
               value={fontName}
-              onChange={(e) => setFontName(e.target.value.trim() || "myicon")}
+              className={!fontName.trim() ? "invalid" : ""}
+              onChange={(e) => setFontName(e.target.value)}
             />
+            {!fontName.trim() && (
+              <span className="field-error">Font name is required.</span>
+            )}
           </label>
           <label>
             CSS class prefix
@@ -579,17 +610,25 @@ export default function App() {
 
           <button
             className="primary"
-            disabled={busy || !icons.length || dupNames.size > 0}
+            disabled={
+              busy || !icons.length || dupNames.size > 0 || !fontName.trim()
+            }
             title={
-              dupNames.size > 0 ? "Resolve duplicate icon names first" : ""
+              !fontName.trim()
+                ? "Enter a font name first"
+                : dupNames.size > 0
+                  ? "Resolve duplicate icon names first"
+                  : ""
             }
             onClick={generate}
           >
             {busy
               ? "Generating…"
-              : dupNames.size > 0
-                ? "Fix duplicate names"
-                : "Generate font"}
+              : !fontName.trim()
+                ? "Enter a font name"
+                : dupNames.size > 0
+                  ? "Fix duplicate names"
+                  : "Generate font"}
           </button>
 
           {result && (

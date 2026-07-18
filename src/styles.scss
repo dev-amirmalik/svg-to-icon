@@ -3,28 +3,43 @@
 @tailwind utilities;
 
 // ---- SCSS design tokens ----
-$bg: #0f1115;
-$panel: #161922;
-$panel-2: #1c202b;
-$border: #272c38;
-$text: #e6e8ee;
-$muted: #9aa3b2;
+// Theme-dependent tokens resolve through CSS custom properties so the
+// light/dark switch works at runtime. Accent/danger stay literal because
+// SCSS color functions (rgba(...)) need real colors at compile time.
+$bg: var(--bg);
+$panel: var(--panel);
+$panel-2: var(--panel-2);
+$border: var(--border);
+$text: var(--text);
+$muted: var(--muted);
 $accent: #4c6ef5;
 $accent-2: #5b7cfa;
 $danger: #ff6b6b;
 $radius: 12px;
 
-// Expose tokens as CSS custom properties too (handy for inline styles / Tailwind arbitrary values).
+// Light theme (default).
 :root {
-  --bg: #{$bg};
-  --panel: #{$panel};
-  --panel-2: #{$panel-2};
-  --border: #{$border};
-  --text: #{$text};
-  --muted: #{$muted};
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #eef1f5;
+  --border: #dfe3ea;
+  --text: #1a1d24;
+  --muted: #667085;
   --accent: #{$accent};
   --accent-2: #{$accent-2};
   --danger: #{$danger};
+  color-scheme: light;
+}
+
+// Dark theme.
+:root[data-theme="dark"] {
+  --bg: #0f1115;
+  --panel: #161922;
+  --panel-2: #1c202b;
+  --border: #272c38;
+  --text: #e6e8ee;
+  --muted: #9aa3b2;
+  color-scheme: dark;
 }
 
 @mixin field {
@@ -101,7 +116,31 @@ body {
   }
 }
 
-.topbar { margin-bottom: 22px; }
+.topbar {
+  margin-bottom: 22px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.theme-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid $border;
+  background: $panel;
+  color: $muted;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s;
+
+  &:hover { border-color: $accent; color: $text; }
+  .tt-icon { font-size: 15px; line-height: 1; }
+}
 
 .brand {
   display: flex;
@@ -182,6 +221,15 @@ body {
   color: $danger;
   border: 1px solid rgba($danger, 0.3);
   font-size: 13px;
+}
+
+input.invalid { border-color: $danger; }
+.field-error {
+  display: block;
+  margin-top: 5px;
+  color: $danger;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .toolbar {
