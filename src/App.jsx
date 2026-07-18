@@ -120,12 +120,21 @@ export default function App() {
   const [dragging, setDragging] = useState(false);
   const [importDragging, setImportDragging] = useState(false);
   const [tab, setTab] = useState("svg"); // "svg" | "font"
+  const [modal, setModal] = useState(null); // null | "howto" | "preview"
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
     return localStorage.getItem("theme") || "light";
   });
   const fileInput = useRef(null);
   const fontInput = useRef(null);
+
+  // Close the lightbox on Escape.
+  useEffect(() => {
+    if (!modal) return;
+    const onKey = (e) => e.key === "Escape" && setModal(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [modal]);
 
   // Apply the theme to <html> and remember the choice across reloads.
   useEffect(() => {
@@ -726,61 +735,92 @@ export default function App() {
               <button className="primary block" onClick={downloadZip}>
                 ⬇ Download all (.zip)
               </button>
-            </div>
-          )}
 
-          {result && (
-            <div className="howto">
-              <h3>How to use</h3>
-              <p>Works in any site — no framework or build tools needed.</p>
-              <ol>
-                <li>
-                  Copy the <code>fonts/</code> folder and <code>style.css</code>{" "}
-                  into your project, side by side.
-                </li>
-                <li>
-                  Link the stylesheet in your page&apos;s <code>&lt;head&gt;</code>:
-                  <pre>{`<link rel="stylesheet" href="style.css" />`}</pre>
-                </li>
-                <li>
-                  Add an icon with its class:
-                  <pre>{`<span class="${classPrefix}${icons[0]?.name || "name"}"></span>`}</pre>
-                </li>
-                <li>
-                  Size / color it like text:
-                  <pre>{`.${classPrefix}${icons[0]?.name || "name"} { font-size: 24px; color: #e63946; }`}</pre>
-                </li>
-              </ol>
-              <p className="howto-note">
-                Using React/Vue/Vite/webpack? Put <code>style.css</code> +{" "}
-                <code>fonts/</code> in your <code>public/</code> folder (or import
-                the CSS), and use <code>className</code> in JSX. Full steps and
-                the class list are in <code>README.md</code> / <code>demo.html</code>.
-              </p>
-            </div>
-          )}
-
-          {result && (
-            <div className="font-preview">
-              <h3>Font preview</h3>
-              <div className="fp-grid">
-                {icons.map((ic) => (
-                  <div
-                    className="fp-cell"
-                    key={ic.id}
-                    title={`${classPrefix}${ic.name}`}
-                  >
-                    <span style={{ fontFamily: result.previewFamily }}>
-                      {String.fromCodePoint(ic.unicode)}
-                    </span>
-                    <small>{ic.name}</small>
-                  </div>
-                ))}
+              <div className="view-actions">
+                <button className="ghost" onClick={() => setModal("howto")}>
+                  ⓘ How to use
+                </button>
+                <button className="ghost" onClick={() => setModal("preview")}>
+                  ◱ Font preview ({icons.length})
+                </button>
               </div>
             </div>
           )}
         </aside>
       </main>
+
+      {result && modal && (
+        <div
+          className="lightbox"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setModal(null)}
+        >
+          <div className="lb-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="lb-head">
+              <h3>{modal === "howto" ? "How to use" : "Font preview"}</h3>
+              <button
+                className="lb-close"
+                aria-label="Close"
+                onClick={() => setModal(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="lb-body">
+              {modal === "howto" ? (
+                <div className="howto">
+                  <p>Works in any site — no framework or build tools needed.</p>
+                  <ol>
+                    <li>
+                      Copy the <code>fonts/</code> folder and{" "}
+                      <code>style.css</code> into your project, side by side.
+                    </li>
+                    <li>
+                      Link the stylesheet in your page&apos;s{" "}
+                      <code>&lt;head&gt;</code>:
+                      <pre>{`<link rel="stylesheet" href="style.css" />`}</pre>
+                    </li>
+                    <li>
+                      Add an icon with its class:
+                      <pre>{`<span class="${classPrefix}${icons[0]?.name || "name"}"></span>`}</pre>
+                    </li>
+                    <li>
+                      Size / color it like text:
+                      <pre>{`.${classPrefix}${icons[0]?.name || "name"} { font-size: 24px; color: #e63946; }`}</pre>
+                    </li>
+                  </ol>
+                  <p className="howto-note">
+                    Using React/Vue/Vite/webpack? Put <code>style.css</code> +{" "}
+                    <code>fonts/</code> in your <code>public/</code> folder (or
+                    import the CSS), and use <code>className</code> in JSX. Full
+                    steps and the class list are in <code>README.md</code> /{" "}
+                    <code>demo.html</code>.
+                  </p>
+                </div>
+              ) : (
+                <div className="font-preview">
+                  <div className="fp-grid">
+                    {icons.map((ic) => (
+                      <div
+                        className="fp-cell"
+                        key={ic.id}
+                        title={`${classPrefix}${ic.name}`}
+                      >
+                        <span style={{ fontFamily: result.previewFamily }}>
+                          {String.fromCodePoint(ic.unicode)}
+                        </span>
+                        <small>{ic.name}</small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

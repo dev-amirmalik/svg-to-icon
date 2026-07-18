@@ -262,14 +262,74 @@ input.invalid { border-color: $danger; }
   font-weight: 500;
 }
 
-.howto {
-  margin-top: 20px;
-  padding: 16px;
+.view-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+
+  .ghost { flex: 1; text-align: center; padding: 9px 10px; font-size: 12px; }
+}
+
+// Lightbox / modal overlay
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  animation: lb-fade 0.12s ease-out;
+}
+
+@keyframes lb-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.lb-panel {
+  width: min(680px, 100%);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
   background: $panel;
   border: 1px solid $border;
-  border-radius: 12px;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
 
-  h3 { margin: 0 0 6px; font-size: 14px; }
+.lb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid $border;
+
+  h3 { margin: 0; font-size: 15px; }
+}
+
+.lb-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid $border;
+  background: $panel-2;
+  color: $muted;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { background: $danger; color: #fff; border-color: $danger; }
+}
+
+.lb-body {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.howto {
   p { margin: 0 0 10px; color: $muted; font-size: 12px; line-height: 1.5; }
 
   ol {
