@@ -119,6 +119,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
   const [importDragging, setImportDragging] = useState(false);
+  const [tab, setTab] = useState("svg"); // "svg" | "font"
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
     return localStorage.getItem("theme") || "light";
@@ -237,35 +238,38 @@ export default function App() {
     [unitsPerEm, fit, padding],
   );
 
-  // Route dropped/selected files: SVGs become icons, font files get imported.
-  const routeFiles = useCallback(
-    (fileList) => {
-      const files = Array.from(fileList);
-      const svgs = files.filter(
-        (f) => /\.svg$/i.test(f.name) || f.type === "image/svg+xml",
-      );
-      const fonts = files.filter(
-        (f) =>
-          /\.(ttf|otf|woff2?|eot)$/i.test(f.name) || /^font\//.test(f.type),
-      );
-      if (svgs.length) addFiles(svgs);
-      fonts.forEach((f) => importFont(f));
-      if (!svgs.length && !fonts.length) {
-        setError(
-          "Drop SVG icons or a font file (.ttf / .otf / .woff / .woff2).",
-        );
-      }
-    },
-    [addFiles, importFont],
-  );
+  const isSvg = (f) => /\.svg$/i.test(f.name) || f.type === "image/svg+xml";
+  const isFont = (f) =>
+    /\.(ttf|otf|woff2?|eot)$/i.test(f.name) || /^font\//.test(f.type);
 
-  const onDrop = useCallback(
+  // SVG tab: accept only SVGs; nudge to the Import-font tab if a font is dropped.
+  const onDropSvg = useCallback(
     (e) => {
       e.preventDefault();
       setDragging(false);
-      routeFiles(e.dataTransfer.files);
+      const files = Array.from(e.dataTransfer.files);
+      const svgs = files.filter(isSvg);
+      if (svgs.length) addFiles(svgs);
+      else if (files.some(isFont))
+        setError('That looks like a font — switch to the "Import font" tab.');
+      else setError("No SVG files found. Please drop .svg files.");
     },
-    [routeFiles],
+    [addFiles],
+  );
+
+  // Font tab: accept only font files; nudge to the SVG tab if an SVG is dropped.
+  const onDropFont = useCallback(
+    (e) => {
+      e.preventDefault();
+      setImportDragging(false);
+      const files = Array.from(e.dataTransfer.files);
+      const fonts = files.filter(isFont);
+      if (fonts.length) fonts.forEach((f) => importFont(f));
+      else if (files.some(isSvg))
+        setError('That’s an SVG — switch to the "Add SVG icons" tab.');
+      else setError("Drop a font file (.ttf / .otf / .woff / .woff2).");
+    },
+    [importFont],
   );
 
   const removeIcon = (id) =>
@@ -414,67 +418,82 @@ export default function App() {
 
       <main className="layout">
         <section className="left">
-          <div
-            className={`dropzone ${dragging ? "drag" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={onDrop}
-            onClick={() => fileInput.current?.click()}
-          >
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".svg,image/svg+xml"
-              multiple
-              hidden
-              onChange={(e) => addFiles(e.target.files)}
-            />
-            <div className="dz-inner">
-              <div className="dz-icon">⬆</div>
-              <strong>Drop SVG files here</strong>
-              <span>
-                or click to browse — you can also drop a font file to import
-              </span>
-            </div>
+          <div className="tabs" role="tablist">
+            <button
+              role="tab"
+              aria-selected={tab === "svg"}
+              className={`tab ${tab === "svg" ? "active" : ""}`}
+              onClick={() => setTab("svg")}
+            >
+              Add SVG icons
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === "font"}
+              className={`tab ${tab === "font" ? "active" : ""}`}
+              onClick={() => setTab("font")}
+            >
+              Import existing font
+            </button>
           </div>
 
-          <div
-            className={`import-row ${importDragging ? "drag" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setImportDragging(true);
-            }}
-            onDragLeave={() => setImportDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setImportDragging(false);
-              routeFiles(e.dataTransfer.files);
-            }}
-          >
-            <input
-              ref={fontInput}
-              type="file"
-              accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
-              hidden
-              onChange={(e) => {
-                if (e.target.files[0]) importFont(e.target.files[0]);
-                e.target.value = "";
+          {tab === "svg" ? (
+            <div
+              className={`dropzone ${dragging ? "drag" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
               }}
-            />
-            <button
-              className="ghost wide"
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDropSvg}
+              onClick={() => fileInput.current?.click()}
+            >
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".svg,image/svg+xml"
+                multiple
+                hidden
+                onChange={(e) => addFiles(e.target.files)}
+              />
+              <div className="dz-inner">
+                <div className="dz-icon">⬆</div>
+                <strong>Drop SVG files here</strong>
+                <span>or click to browse — .svg icons only</span>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`dropzone ${importDragging ? "drag" : ""}`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setImportDragging(true);
+              }}
+              onDragLeave={() => setImportDragging(false)}
+              onDrop={onDropFont}
               onClick={() => fontInput.current?.click()}
             >
-              ⤓ Import existing font (.ttf / .otf / .woff / .woff2)
-            </button>
-            <span className="import-hint">
-              Click, or drop a font file here — loads an old icon font so you
-              can add or edit icons, keeping its codepoints.
-            </span>
-          </div>
+              <input
+                ref={fontInput}
+                type="file"
+                accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2"
+                hidden
+                onChange={(e) => {
+                  if (e.target.files[0]) importFont(e.target.files[0]);
+                  e.target.value = "";
+                }}
+              />
+              <div className="dz-inner">
+                <div className="dz-icon">⤓</div>
+                <strong>Drop a font file here</strong>
+                <span>
+                  or click to browse — .ttf / .otf / .woff / .woff2. Loads an
+                  existing icon font so you can add or edit icons, keeping its
+                  codepoints.
+                </span>
+              </div>
+            </div>
+          )}
 
           {error && <div className="error">{error}</div>}
 
