@@ -17,21 +17,9 @@ $accent-2: #5b7cfa;
 $danger: #ff6b6b;
 $radius: 12px;
 
-// Light theme (default).
-:root {
-  --bg: #f6f7f9;
-  --panel: #ffffff;
-  --panel-2: #eef1f5;
-  --border: #dfe3ea;
-  --text: #1a1d24;
-  --muted: #667085;
-  --accent: #{$accent};
-  --accent-2: #{$accent-2};
-  --danger: #{$danger};
-  color-scheme: light;
-}
-
-// Dark theme.
+// Dark theme is the default (also the fallback before JS runs / if JS is off),
+// which prevents a light flash on load for dark users.
+:root,
 :root[data-theme="dark"] {
   --bg: #0f1115;
   --panel: #161922;
@@ -39,7 +27,21 @@ $radius: 12px;
   --border: #272c38;
   --text: #e6e8ee;
   --muted: #9aa3b2;
+  --accent: #{$accent};
+  --accent-2: #{$accent-2};
+  --danger: #{$danger};
   color-scheme: dark;
+}
+
+// Light theme (opt-in via the toggle).
+:root[data-theme="light"] {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #eef1f5;
+  --border: #dfe3ea;
+  --text: #1a1d24;
+  --muted: #667085;
+  color-scheme: light;
 }
 
 @mixin field {

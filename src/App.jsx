@@ -122,8 +122,8 @@ export default function App() {
   const [tab, setTab] = useState("svg"); // "svg" | "font"
   const [modal, setModal] = useState(null); // null | "howto" | "preview"
   const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "light";
-    return localStorage.getItem("theme") || "light";
+    if (typeof window === "undefined") return "dark";
+    return localStorage.getItem("theme") || "dark";
   });
   const fileInput = useRef(null);
   const fontInput = useRef(null);
