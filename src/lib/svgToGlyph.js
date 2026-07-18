@@ -2,6 +2,7 @@
 // font units (y-up coordinate system), ready for opentype.js.
 import svgpath from "svgpath";
 import * as opentype from "opentype.js";
+import polygonClipping from "polygon-clipping";
 
 const SHAPE_TAGS = ["path", "rect", "circle", "ellipse", "line", "polyline", "polygon"];
 
@@ -138,69 +139,85 @@ function flattenPath(d) {
   return subs.filter((s) => s.pts.length > 0);
 }
 
-function signedArea(pts) {
+function signedArea(ring) {
   let a = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    const q = pts[(i + 1) % pts.length];
-    a += p.x * q.y - q.x * p.y;
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i];
+    const q = ring[(i + 1) % ring.length];
+    a += p[0] * q[1] - q[0] * p[1];
   }
   return a / 2;
 }
 
-// Force a consistent winding so overlapping contours union under non-zero fill.
-function normalize(pts) {
-  return signedArea(pts) < 0 ? pts.slice().reverse() : pts;
+// Force a consistent winding so raw contours still fill under non-zero rule
+// (used only for the union() fallback path).
+function normalize(ring) {
+  return signedArea(ring) < 0 ? ring.slice().reverse() : ring;
 }
 
-function disc(c, r, n = 16) {
+// A closed disc ring (round join / cap), as [x,y] pairs.
+function discRing(c, r, n = 16) {
   const pts = [];
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    pts.push({ x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r });
+    pts.push([c.x + Math.cos(a) * r, c.y + Math.sin(a) * r]);
   }
+  pts.push(pts[0]);
   return pts;
 }
 
-function segQuad(a, b, r) {
+// A closed rectangle ring covering a stroke segment, as [x,y] pairs.
+function segQuadRing(a, b, r) {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy);
   if (len < 1e-6) return null;
   const nx = (-dy / len) * r;
   const ny = (dx / len) * r;
-  return [
-    { x: a.x + nx, y: a.y + ny },
-    { x: b.x + nx, y: b.y + ny },
-    { x: b.x - nx, y: b.y - ny },
-    { x: a.x - nx, y: a.y - ny },
+  const p = [
+    [a.x + nx, a.y + ny],
+    [b.x + nx, b.y + ny],
+    [b.x - nx, b.y - ny],
+    [a.x - nx, a.y - ny],
   ];
+  p.push(p[0]);
+  return p;
 }
 
-function contourToD(pts) {
+function ringToD(ring) {
   const f = (v) => Math.round(v * 1000) / 1000;
-  let d = `M${f(pts[0].x)} ${f(pts[0].y)}`;
-  for (let i = 1; i < pts.length; i++) d += `L${f(pts[i].x)} ${f(pts[i].y)}`;
+  let d = `M${f(ring[0][0])} ${f(ring[0][1])}`;
+  for (let i = 1; i < ring.length; i++) d += `L${f(ring[i][0])} ${f(ring[i][1])}`;
   return d + "Z";
 }
 
-// Convert a stroked path "d" into a filled outline "d" (round caps/joins).
+// Convert a stroked path "d" into a filled outline "d" with round caps/joins.
+// The stroke is built from many overlapping pieces (a quad per segment + a disc
+// per vertex), then unioned into clean, non-overlapping contours. This makes the
+// generated glyph match the on-screen preview exactly and keeps it compact —
+// raw overlapping contours rasterize with a different weight inside a font.
 function outlineStroke(d, width) {
   const r = width / 2;
   if (!(r > 0)) return "";
-  const contours = [];
+  const polys = [];
   for (const sub of flattenPath(d)) {
     const seq = sub.closed ? [...sub.pts, sub.pts[0]] : sub.pts;
     for (let i = 0; i + 1 < seq.length; i++) {
-      const q = segQuad(seq[i], seq[i + 1], r);
-      if (q) contours.push(q);
+      const q = segQuadRing(seq[i], seq[i + 1], r);
+      if (q) polys.push([q]);
     }
-    for (const v of sub.pts) contours.push(disc(v, r)); // round joins + caps
+    for (const v of sub.pts) polys.push([discRing(v, r)]); // round joins + caps
   }
-  return contours
-    .map(normalize)
-    .map(contourToD)
-    .join(" ");
+  if (!polys.length) return "";
+  try {
+    const merged = polygonClipping.union(polys[0], ...polys.slice(1));
+    let out = "";
+    for (const poly of merged) for (const ring of poly) out += ringToD(ring);
+    return out;
+  } catch {
+    // Fallback: emit the raw overlapping contours (still fills under non-zero).
+    return polys.map((p) => ringToD(normalize(p[0]))).join(" ");
+  }
 }
 
 // Turn a primitive shape element into an SVG path "d" string.
