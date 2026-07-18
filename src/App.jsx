@@ -361,10 +361,13 @@ export default function App() {
         }
       })();
 
-      // WOFF2 — optional, may be unavailable; runs in the background with a timeout.
+      // WOFF2 — optional; runs in the background. On failure we record the
+      // reason so the download button can explain why it's unavailable.
       (async () => {
-        const woff2 = await compressWoff2(res.ttf);
-        if (woff2) setResult((r) => (r === res ? { ...r, woff2 } : r));
+        const { woff2, error: woff2Error } = await compressWoff2(res.ttf);
+        setResult((r) =>
+          r === res ? { ...r, woff2, woff2Error } : r,
+        );
       })();
     } catch (e) {
       console.error(e);
@@ -680,9 +683,20 @@ export default function App() {
                 onClick={() =>
                   downloadBlob(result.woff2, `${fontName}.woff2`, "font/woff2")
                 }
-                title={result.woff2 ? "" : "WOFF2 unavailable in this browser"}
+                title={
+                  result.woff2
+                    ? ""
+                    : result.woff2Error
+                      ? `WOFF2 unavailable: ${result.woff2Error}`
+                      : "Generating WOFF2…"
+                }
               >
-                {fontName}.woff2{!result.woff2 ? " (n/a)" : ""}
+                {fontName}.woff2
+                {result.woff2
+                  ? ""
+                  : result.woff2Error
+                    ? " (n/a)"
+                    : " …"}
               </button>
               <button
                 className="dl"

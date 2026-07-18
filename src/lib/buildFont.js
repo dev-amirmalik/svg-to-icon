@@ -74,23 +74,35 @@ export function buildFont(icons, options) {
 
 /**
  * Convert a TTF (Uint8Array) to WOFF2 using the wawoff2 WASM encoder.
- * Best-effort: resolves to null if the encoder is unavailable or times out.
+ * Resolves to { woff2, error }: woff2 is a Uint8Array on success, or null with
+ * a human-readable `error` explaining why it couldn't be produced. Never throws.
  */
-export async function compressWoff2(ttf, timeoutMs = 15000) {
+export async function compressWoff2(ttf, timeoutMs = 30000) {
   try {
     const load = (async () => {
       const mod = await import("wawoff2");
-      const compress = mod.compress || (mod.default && mod.default.compress);
-      if (!compress) throw new Error("wawoff2.compress not found");
-      return toUint8(await compress(ttf));
+      const compress =
+        mod.compress ||
+        (mod.default && (mod.default.compress || mod.default));
+      if (typeof compress !== "function")
+        throw new Error("wawoff2 encoder did not load");
+      // The Emscripten binding wants a Uint8Array/Buffer view of the TTF bytes.
+      const out = await compress(toUint8(ttf));
+      const woff2 = toUint8(out);
+      if (!woff2 || woff2.length < 4)
+        throw new Error("encoder returned empty output");
+      return { woff2, error: null };
     })();
     const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("WOFF2 timed out")), timeoutMs)
+      setTimeout(
+        () => reject(new Error(`WOFF2 encoder timed out after ${timeoutMs}ms`)),
+        timeoutMs,
+      ),
     );
     return await Promise.race([load, timeout]);
   } catch (e) {
     console.warn("WOFF2 conversion unavailable:", e);
-    return null;
+    return { woff2: null, error: e?.message || String(e) };
   }
 }
 
