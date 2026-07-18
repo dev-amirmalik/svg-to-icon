@@ -68,8 +68,9 @@ export function buildFont(icons, options) {
 
   const css = generateCss({ fontName, classPrefix, icons });
   const demo = generateDemoHtml({ fontName, classPrefix, icons });
+  const usage = generateUsage({ fontName, classPrefix, icons });
 
-  return { ttf, woff, woff2: null, css, demo, fontName, classPrefix };
+  return { ttf, woff, woff2: null, css, demo, usage, fontName, classPrefix };
 }
 
 /**
@@ -144,6 +145,82 @@ ${rules}
 `;
 }
 
+// A plain-language guide shipped as README.md inside the download, aimed at
+// people who are NOT on a modern framework (static HTML/CSS sites), with a
+// short note for bundler-based projects too.
+export function generateUsage({ fontName, classPrefix, icons }) {
+  const first = icons[0]?.name || "name";
+  const cls = `${classPrefix}${first}`;
+  const classList = icons.map((i) => `${classPrefix}${i.name}`).join("\n");
+
+  return `# ${fontName} — icon font
+
+This download contains:
+
+- \`fonts/\` — the font files (\`.woff2\`, \`.woff\`, \`.ttf\`)
+- \`style.css\` — defines the font and one CSS class per icon
+- \`demo.html\` — a visual cheat-sheet of every icon and its class name
+- \`README.md\` — this file
+
+---
+
+## Plain HTML / CSS site (no build tools)
+
+This is all you need — no JavaScript, no framework.
+
+**1.** Copy the \`fonts/\` folder **and** \`style.css\` into your project, keeping
+them next to each other. \`style.css\` points at the fonts with relative paths
+(\`fonts/${fontName}.woff2\`), so the \`fonts/\` folder must sit beside it.
+
+**2.** Link the stylesheet inside \`<head>\` of your page:
+
+    <link rel="stylesheet" href="style.css" />
+
+**3.** Show an icon by putting its class on an empty element:
+
+    <span class="${cls}"></span>
+    <i class="${cls}"></i>
+
+**4.** Size and color it like normal text (icons inherit \`font-size\` and \`color\`):
+
+    .${cls} {
+      font-size: 24px;
+      color: #e63946;
+    }
+
+Open \`demo.html\` in a browser to see every icon and copy its class name.
+
+---
+
+## Framework / bundler project (React, Vue, Vite, webpack, …)
+
+Bundlers rewrite asset URLs, so pick one of these:
+
+- **Static assets:** put \`style.css\` and the \`fonts/\` folder in your project's
+  \`public/\` (or \`static/\`) directory and link \`style.css\` as shown above, **or**
+- **Import the CSS:** move \`fonts/\` next to \`style.css\`, then import it once from
+  your entry file: \`import "./style.css";\`. If the fonts 404, adjust the
+  \`url("fonts/…")\` paths in \`style.css\` to where your bundler serves them.
+
+In JSX, use \`className\` instead of \`class\`:
+
+    <span className="${cls}" />
+
+---
+
+## Notes
+
+- The icons live in the Unicode Private Use Area — always reference them by the
+  CSS classes below, don't type the characters directly.
+- All three formats are included; the CSS lists them in order so each browser
+  picks the best it supports (\`.woff2\` for modern, \`.woff\`/\`.ttf\` for older).
+
+## Available classes (${icons.length})
+
+${classList}
+`;
+}
+
 export function generateDemoHtml({ fontName, classPrefix, icons }) {
   const cells = icons
     .map(
@@ -197,5 +274,6 @@ export async function packageZip(result) {
   if (woff2) fonts.file(`${fontName}.woff2`, woff2);
   zip.file("style.css", css);
   zip.file("demo.html", demo);
+  if (result.usage) zip.file("README.md", result.usage);
   return zip.generateAsync({ type: "blob" });
 }

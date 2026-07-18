@@ -262,6 +262,54 @@ input.invalid { border-color: $danger; }
   font-weight: 500;
 }
 
+.howto {
+  margin-top: 20px;
+  padding: 16px;
+  background: $panel;
+  border: 1px solid $border;
+  border-radius: 12px;
+
+  h3 { margin: 0 0 6px; font-size: 14px; }
+  p { margin: 0 0 10px; color: $muted; font-size: 12px; line-height: 1.5; }
+
+  ol {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  code {
+    background: $panel-2;
+    border: 1px solid $border;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 11px;
+  }
+
+  pre {
+    margin: 6px 0 0;
+    padding: 9px 11px;
+    background: $panel-2;
+    border: 1px solid $border;
+    border-radius: 8px;
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .howto-note {
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid $border;
+  }
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;

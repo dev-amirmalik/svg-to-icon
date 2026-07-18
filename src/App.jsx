@@ -714,9 +714,49 @@ export default function App() {
               >
                 demo.html
               </button>
+              <button
+                className="dl"
+                disabled={!result.usage}
+                onClick={() =>
+                  downloadBlob(result.usage, "README.md", "text/markdown")
+                }
+              >
+                README.md
+              </button>
               <button className="primary block" onClick={downloadZip}>
                 ⬇ Download all (.zip)
               </button>
+            </div>
+          )}
+
+          {result && (
+            <div className="howto">
+              <h3>How to use</h3>
+              <p>Works in any site — no framework or build tools needed.</p>
+              <ol>
+                <li>
+                  Copy the <code>fonts/</code> folder and <code>style.css</code>{" "}
+                  into your project, side by side.
+                </li>
+                <li>
+                  Link the stylesheet in your page&apos;s <code>&lt;head&gt;</code>:
+                  <pre>{`<link rel="stylesheet" href="style.css" />`}</pre>
+                </li>
+                <li>
+                  Add an icon with its class:
+                  <pre>{`<span class="${classPrefix}${icons[0]?.name || "name"}"></span>`}</pre>
+                </li>
+                <li>
+                  Size / color it like text:
+                  <pre>{`.${classPrefix}${icons[0]?.name || "name"} { font-size: 24px; color: #e63946; }`}</pre>
+                </li>
+              </ol>
+              <p className="howto-note">
+                Using React/Vue/Vite/webpack? Put <code>style.css</code> +{" "}
+                <code>fonts/</code> in your <code>public/</code> folder (or import
+                the CSS), and use <code>className</code> in JSX. Full steps and
+                the class list are in <code>README.md</code> / <code>demo.html</code>.
+              </p>
             </div>
           )}
 
