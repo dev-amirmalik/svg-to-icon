@@ -7,11 +7,9 @@ export default defineConfig({
   plugins: [react()],
   // ttf2woff references node Buffer; provide a browser global via the polyfill we ship.
   optimizeDeps: {
-    // wawoff2 is a CommonJS module loaded only via dynamic import(); Vite won't
-    // pre-bundle such deps automatically, which makes the dynamic import fail at
-    // runtime and silently drops WOFF2. Force it (and the other CJS deps) to be
-    // pre-bundled so import("wawoff2") resolves in dev and prod.
-    include: ["wawoff2", "ttf2woff", "opentype.js", "jszip"],
+    // wawoff2 is still used to DECOMPRESS .woff2 when importing an existing
+    // font; it's a CommonJS dep loaded via dynamic import(), so pre-bundle it.
+    include: ["ttf2woff", "opentype.js", "jszip", "polygon-clipping", "wawoff2"],
     esbuildOptions: {
       define: { global: "globalThis" },
     },

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import svgpath from "svgpath";
 import { svgToGlyphPath, centerGlyphPath } from "./lib/svgToGlyph.js";
-import { buildFont, compressWoff2, packageZip } from "./lib/buildFont.js";
+import { buildFont, packageZip } from "./lib/buildFont.js";
 import { importFontFile } from "./lib/importFont.js";
 import {
   loadState,
@@ -369,15 +369,6 @@ export default function App() {
           console.warn("Preview font load failed:", e);
         }
       })();
-
-      // WOFF2 — optional; runs in the background. On failure we record the
-      // reason so the download button can explain why it's unavailable.
-      (async () => {
-        const { woff2, error: woff2Error } = await compressWoff2(res.ttf);
-        setResult((r) =>
-          r === res ? { ...r, woff2, woff2Error } : r,
-        );
-      })();
     } catch (e) {
       console.error(e);
       setError("Font generation failed: " + e.message);
@@ -685,27 +676,6 @@ export default function App() {
                 }
               >
                 {fontName}.woff
-              </button>
-              <button
-                className="dl"
-                disabled={!result.woff2}
-                onClick={() =>
-                  downloadBlob(result.woff2, `${fontName}.woff2`, "font/woff2")
-                }
-                title={
-                  result.woff2
-                    ? ""
-                    : result.woff2Error
-                      ? `WOFF2 unavailable: ${result.woff2Error}`
-                      : "Generating WOFF2…"
-                }
-              >
-                {fontName}.woff2
-                {result.woff2
-                  ? ""
-                  : result.woff2Error
-                    ? " (n/a)"
-                    : " …"}
               </button>
               <button
                 className="dl"

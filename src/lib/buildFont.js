@@ -15,9 +15,10 @@ function unicodeHex(cp) {
 }
 
 /**
- * Build the font core: TTF (required) + WOFF (best-effort) + CSS + demo.
- * This never awaits anything that could hang, so the UI can show results immediately.
- * WOFF2 is generated separately via compressWoff2() because its WASM encoder can stall.
+ * Build the font: TTF (required) + WOFF (best-effort) + CSS + demo + README.
+ * This never awaits anything that could hang, so the UI can show results
+ * immediately. WOFF2 output was removed — its WASM encoder was unreliable in
+ * the browser; browsers still accept the WOFF/TTF we ship.
  *
  * @param {Array<{name,unicode,d,advanceWidth}>} icons
  * @param {{fontName:string, unitsPerEm:number, classPrefix:string}} options
@@ -70,48 +71,13 @@ export function buildFont(icons, options) {
   const demo = generateDemoHtml({ fontName, classPrefix, icons });
   const usage = generateUsage({ fontName, classPrefix, icons });
 
-  return { ttf, woff, woff2: null, css, demo, usage, fontName, classPrefix };
-}
-
-/**
- * Convert a TTF (Uint8Array) to WOFF2 using the wawoff2 WASM encoder.
- * Resolves to { woff2, error }: woff2 is a Uint8Array on success, or null with
- * a human-readable `error` explaining why it couldn't be produced. Never throws.
- */
-export async function compressWoff2(ttf, timeoutMs = 30000) {
-  try {
-    const load = (async () => {
-      const mod = await import("wawoff2");
-      const compress =
-        mod.compress ||
-        (mod.default && (mod.default.compress || mod.default));
-      if (typeof compress !== "function")
-        throw new Error("wawoff2 encoder did not load");
-      // The Emscripten binding wants a Uint8Array/Buffer view of the TTF bytes.
-      const out = await compress(toUint8(ttf));
-      const woff2 = toUint8(out);
-      if (!woff2 || woff2.length < 4)
-        throw new Error("encoder returned empty output");
-      return { woff2, error: null };
-    })();
-    const timeout = new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`WOFF2 encoder timed out after ${timeoutMs}ms`)),
-        timeoutMs,
-      ),
-    );
-    return await Promise.race([load, timeout]);
-  } catch (e) {
-    console.warn("WOFF2 conversion unavailable:", e);
-    return { woff2: null, error: e?.message || String(e) };
-  }
+  return { ttf, woff, css, demo, usage, fontName, classPrefix };
 }
 
 export function generateCss({ fontName, classPrefix, icons }) {
-  // Always list all three formats; browsers pick the first they support and
-  // skip any file that isn't present.
+  // List WOFF then TTF; browsers pick the first they support and skip any file
+  // that isn't present.
   const srcs = [
-    `url("fonts/${fontName}.woff2") format("woff2")`,
     `url("fonts/${fontName}.woff") format("woff")`,
     `url("fonts/${fontName}.ttf") format("truetype")`,
   ];
@@ -157,7 +123,7 @@ export function generateUsage({ fontName, classPrefix, icons }) {
 
 This download contains:
 
-- \`fonts/\` — the font files (\`.woff2\`, \`.woff\`, \`.ttf\`)
+- \`fonts/\` — the font files (\`.woff\`, \`.ttf\`)
 - \`style.css\` — defines the font and one CSS class per icon
 - \`demo.html\` — a visual cheat-sheet of every icon and its class name
 - \`README.md\` — this file
@@ -170,7 +136,7 @@ This is all you need — no JavaScript, no framework.
 
 **1.** Copy the \`fonts/\` folder **and** \`style.css\` into your project, keeping
 them next to each other. \`style.css\` points at the fonts with relative paths
-(\`fonts/${fontName}.woff2\`), so the \`fonts/\` folder must sit beside it.
+(\`fonts/${fontName}.woff\`), so the \`fonts/\` folder must sit beside it.
 
 **2.** Link the stylesheet inside \`<head>\` of your page:
 
@@ -212,8 +178,8 @@ In JSX, use \`className\` instead of \`class\`:
 
 - The icons live in the Unicode Private Use Area — always reference them by the
   CSS classes below, don't type the characters directly.
-- All three formats are included; the CSS lists them in order so each browser
-  picks the best it supports (\`.woff2\` for modern, \`.woff\`/\`.ttf\` for older).
+- Both formats are included; the CSS lists them in order so each browser picks
+  the one it supports (\`.woff\` first, \`.ttf\` as a fallback).
 
 ## Available classes (${icons.length})
 
@@ -266,12 +232,11 @@ ${cells}
 
 /** Package everything into a downloadable zip Blob. */
 export async function packageZip(result) {
-  const { ttf, woff, woff2, css, demo, fontName } = result;
+  const { ttf, woff, css, demo, fontName } = result;
   const zip = new JSZip();
   const fonts = zip.folder("fonts");
   fonts.file(`${fontName}.ttf`, ttf);
   if (woff) fonts.file(`${fontName}.woff`, woff);
-  if (woff2) fonts.file(`${fontName}.woff2`, woff2);
   zip.file("style.css", css);
   zip.file("demo.html", demo);
   if (result.usage) zip.file("README.md", result.usage);
